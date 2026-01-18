@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include "palette.h"
 
 void gp_color_cube(PALETTE* palette)
@@ -73,8 +72,10 @@ void gp_first_colors(PALETTE* palette, const IMAGE* image)
     }
 }
 
-void generate_palette(PALETTE* palette, const IMAGE* image, enum PALETTE_SIZE size, enum GENERATION_METHOD gen_method)
+PALETTE* generate_palette(const IMAGE* image, enum PALETTE_SIZE size, enum GENERATION_METHOD gen_method)
 {
+    PALETTE* palette = malloc(sizeof(PALETTE));
+
     palette->size = size;
     palette->data = malloc(size * sizeof(PIXEL));
 
@@ -88,4 +89,6 @@ void generate_palette(PALETTE* palette, const IMAGE* image, enum PALETTE_SIZE si
         default:
             break;
     }
+
+    return palette;
 }

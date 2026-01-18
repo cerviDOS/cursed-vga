@@ -13,17 +13,12 @@
 #include "UI.h"
 
 /* TODO:
- * - Add highlighting to selected UI element
- * - Fix cursor location when selecting form
- * - Rework bitflags to work with UI element IDs, maybe have functions
- *   return one or zero if the element has an update, and bitshifting based on
- *   the elem ID
- *
+ *  Document functions, split file into modules, cleanup
  *
  */
 
 static const int NCURSES_PAIR_OFFSET = 4;
-static const int NCURSES_COLOR_OFFSET = 8;
+static const int NCURSES_COLOR_OFFSET = 16;
 
 static int ACTIVE_UI_ELEM_COLOR_PAIR = 1;
 static int INVALID_UI_ELEM_COLOR_PAIR = 2;
@@ -71,13 +66,26 @@ MENU_BUNDLE* palette_size_bundle;
  */
 
 enum UI_ELEMENT_ID {
-    FILEPATH_FORM = 2,
-    PALETTE_GENERATION_MENU = 4,
+    FILEPATH_FORM = FILEPATH_UPDATE - 1,
+    PALETTE_GENERATION_MENU =  PALETTE_GEN_UPDATE - 1
+};
+
+enum UI_ELEMENT_TYPE {
+    FORM_TYPE,
+    MENU_TYPE,
+    BUTTON_TYPE
+};
+
+enum APPEARANCE {
+    DIM,
+    HOVERED,
+    SELECTED
 };
 
 typedef struct UI_NODE {
     void* bundle_ptr;
     enum UI_ELEMENT_ID id;
+    enum UI_ELEMENT_TYPE type;
     struct UI_NODE* up;
     struct UI_NODE* down;
     struct UI_NODE* left;
@@ -105,45 +113,85 @@ void draw_frame_with_title(WINDOW* win, char* text)
     attach_title_to_win(win, text);
 }
 
-void set_menu_bundle_active(MENU_BUNDLE* bundle)
+
+void set_menu_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearance)
 {
-    wattrset(bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR));
-    box(bundle->win, 0, 0);
-    attach_title_to_win(bundle->win, bundle->win_title);
-    set_menu_fore(bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_REVERSE);
-    set_menu_back(bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR));
-    set_menu_grey(bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR));
-    set_menu_grey(bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR));
-    wrefresh(bundle->win);
+    
+    MENU_BUNDLE* menu_bundle = (MENU_BUNDLE*) bundle_ptr;
+
+    int attr = 0;
+    cchar_t top, bottom, left, right, tlcorner, trcorner, blcorner, brcorner;
+
+
+    switch (appearance) {
+        case DIM:
+            attr = A_DIM;
+            break;
+        case HOVERED:
+            attr = 0;
+            break;
+        case SELECTED:
+            attr = 0;
+            
+            break;
+    }
+
+    wattrset(menu_bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
+    //box(menu_bundle->win, border_char, border_char);
+    //wborder_set(menu_bundle->win, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *)
+
+    wborder_set(menu_bundle->win, 0, 0, 0, 0, 0, 0, 0, 0);
+
+    attach_title_to_win(menu_bundle->win, menu_bundle->win_title);
+    set_menu_fore(menu_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_REVERSE | attr);
+    set_menu_back(menu_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
+    set_menu_grey(menu_bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR) | attr);
+    set_menu_grey(menu_bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR) | attr);
+    wrefresh(menu_bundle->win);
 }
 
-void set_menu_bundle_inactive(MENU_BUNDLE* bundle)
+void set_form_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearance)
 {
-    wattrset(bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_DIM);
-    box(bundle->win, 0, 0);
-    attach_title_to_win(bundle->win, bundle->win_title);
-    set_menu_fore(bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_REVERSE | A_DIM);
-    set_menu_back(bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_DIM);
-    set_menu_grey(bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR) | A_DIM);
-    wrefresh(bundle->win);
+    FORM_BUNDLE* form_bundle = (FORM_BUNDLE*) bundle_ptr;
+
+    int attr = 0;
+    char border_char = 0;
+    switch (appearance) {
+        case DIM:
+            attr = A_DIM;
+            break;
+        case HOVERED:
+            attr = 0;
+            break;
+        case SELECTED:
+            attr = 0;
+            border_char = '$';
+            break;
+    }
+
+    wattrset(form_bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
+    box(form_bundle->win, border_char, border_char);
+    attach_title_to_win(form_bundle->win, form_bundle->win_title);
+    set_field_back(current_field(form_bundle->form), A_STANDOUT | attr);
+    mvwprintw(filepath_bundle->win, 1, 1, "filepath:"); // NOTE: temp value, should be made more modular in the future
+    wrefresh(form_bundle->win);
 }
 
-void set_form_bundle_active(FORM_BUNDLE* bundle)
+void set_UI_node_appearance(const UI_NODE* node, enum APPEARANCE appearance)
 {
-    wattrset(bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR));
-    box(bundle->win, 0, 0);
-    attach_title_to_win(bundle->win, bundle->win_title);
-    set_field_back(current_field(bundle->form), A_STANDOUT);    
-    wrefresh(bundle->win);
-}
+    void (*set_appearance_fn)(const void*, enum APPEARANCE);
+    switch(node->type) {
+        case FORM_TYPE:
+            set_appearance_fn = set_form_bundle_appearance;
+            break;
+        case MENU_TYPE:
+            set_appearance_fn = set_menu_bundle_appearance;
+            break;
+        case BUTTON_TYPE:
+            break;
+    }
 
-void set_form_bundle_inactive(FORM_BUNDLE* bundle)
-{
-    wattrset(bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_DIM);
-    box(bundle->win, 0, 0);
-    attach_title_to_win(bundle->win, bundle->win_title);
-    set_field_back(current_field(bundle->form), A_STANDOUT | A_DIM);
-    wrefresh(bundle->win);
+    set_appearance_fn(node->bundle_ptr, appearance);
 }
 
 ITEM** init_items(CHOICES* choices)
@@ -240,13 +288,14 @@ void initialize_UI()
 
     // Attach items, create menu, set non-selectable items
     ITEM** palette_items = init_items(&palette_choices);
-    item_opts_off(palette_items[1], O_SELECTABLE); // TODO: figure out how to fix style of inactive items
+    item_opts_off(palette_items[1], O_SELECTABLE);
     item_opts_off(palette_items[2], O_SELECTABLE);
     item_opts_off(palette_items[3], O_SELECTABLE);
     item_opts_off(palette_items[4], O_SELECTABLE);
     item_opts_off(palette_items[5], O_SELECTABLE);
 
     palette_gen_method_bundle->menu = new_menu(palette_items);
+    palette_gen_method_bundle->selected_item = current_item(palette_gen_method_bundle->menu);
 
     set_menu_fore(palette_gen_method_bundle->menu, A_REVERSE);
     //set_menu_back(palette_gen_method_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR));
@@ -282,10 +331,12 @@ void initialize_UI()
     UI_NODE* filepath_node = malloc(sizeof(UI_NODE));
     filepath_node->bundle_ptr = filepath_bundle;
     filepath_node->id = FILEPATH_FORM;
+    filepath_node->type = FORM_TYPE;
 
     UI_NODE* palette_gen_node = malloc(sizeof(UI_NODE));
     palette_gen_node->bundle_ptr = palette_gen_method_bundle;
     palette_gen_node->id = PALETTE_GENERATION_MENU;
+    palette_gen_node->type = MENU_TYPE;
 
     // Link filepath node
     filepath_node->up = NULL;
@@ -301,6 +352,12 @@ void initialize_UI()
 
     // Set filepath node as head
     UI_graph_head = filepath_node;
+
+    /**** Dim all on startup ****/
+
+    set_UI_node_appearance(filepath_node, DIM);
+    set_UI_node_appearance(palette_gen_node, DIM);
+
 }
 
 void end_UI()
@@ -314,56 +371,22 @@ char* get_filepath()
     return field_buffer(current_field(filepath_bundle->form), 0);
 }
 
-// Return 0: item selected and ready to access
-// 1: navigated left
-// 2: navigated right
-// -1: returned to form
-int navigate_menu(MENU_BUNDLE* menu_bundle)
+enum GENERATION_METHOD get_palette_gen_method()
 {
-    enum STATUS_FLAG status = NO_UPDATE;
-
-    ITEM* curr;
-
-    int c = 0;
-    do {
-        switch(c) {
-            case KEY_DOWN:
-                menu_driver(menu_bundle->menu, REQ_DOWN_ITEM);
-                break;
-            case KEY_UP:
-                menu_driver(menu_bundle->menu, REQ_UP_ITEM);
-                break;
-            case KEY_LEFT:
-                return 1;
-            case KEY_RIGHT:
-                return 2;
-            case KEY_ENTER:
-            case 10:
-                curr = current_item(menu_bundle->menu);
-                if (item_opts(curr) & O_SELECTABLE) {
-                    menu_bundle->selected_item = curr;
-                    return 0;
-                }
-                break;
-            case KEY_F(1):
-                return EXIT_REQUESTED;
-        }
-        wrefresh(menu_bundle->win);
-    } while((c = wgetch(menu_bundle->win)));
-
-    return status;
+    return item_index(palette_gen_method_bundle->selected_item);
 }
 
-enum STATUS_FLAG accept_form_input(FORM_BUNDLE* form_bundle)
+int accept_form_input(void* bundle_ptr)
 {
+    FORM_BUNDLE* form_bundle = (FORM_BUNDLE*) bundle_ptr;
+
+    form_driver(form_bundle->form, REQ_END_FIELD);
     curs_set(1);
 
-    enum STATUS_FLAG status = NO_UPDATE;
     int c = '\0';
+    int modified = 0;
     while((c = wgetch(form_bundle->win)) != 10) { // 10: Enter key pressed
         switch(c) {
-            case KEY_F(1): // TODO: there should be a better way of signaling an exit
-                return EXIT_REQUESTED;
             case KEY_BACKSPACE: // Backspace
                 form_driver(form_bundle->form, REQ_LEFT_CHAR);
                 form_driver(form_bundle->form, REQ_DEL_CHAR);
@@ -372,11 +395,64 @@ enum STATUS_FLAG accept_form_input(FORM_BUNDLE* form_bundle)
                 form_driver(form_bundle->form, c);
                 break;
         }
-        status = FILEPATH_UPDATE;
+        modified = 1;
     }
     curs_set(0);
 
-    return status;
+    return modified;
+}
+
+int accept_menu_input(MENU_BUNDLE* bundle_ptr)
+{
+    MENU_BUNDLE* menu_bundle = (MENU_BUNDLE*) bundle_ptr;
+
+    int in = '\0';
+    int modified = 0;
+    ITEM* curr;
+
+    do {
+        switch((in = wgetch(menu_bundle->win))) {
+            case KEY_DOWN:
+                menu_driver(menu_bundle->menu, REQ_DOWN_ITEM);
+                break;
+            case KEY_UP:
+                menu_driver(menu_bundle->menu, REQ_UP_ITEM);
+                break;
+            case KEY_ENTER:
+            case 10:
+                curr = current_item(menu_bundle->menu);
+                if (item_opts(curr) & O_SELECTABLE) {
+                    menu_bundle->selected_item = curr;
+                    modified = 1;
+                }
+                break;
+        }
+        wrefresh(menu_bundle->win);
+    } while(in != 10); // 10: Enter key pressed
+
+    return modified;
+}
+
+int accept_input(const UI_NODE* node)
+{
+    uint8_t ret = 0;
+
+    set_UI_node_appearance(node, SELECTED);
+
+    switch(node->type) {
+        case FORM_TYPE:
+            ret = accept_form_input(node->bundle_ptr) << node->id;
+            break;
+        case MENU_TYPE:
+            ret = accept_menu_input(node->bundle_ptr) << node->id;
+            break;
+        case BUTTON_TYPE:
+            break;
+    }
+
+    set_UI_node_appearance(node, HOVERED);
+
+    return ret;
 }
 
 uint8_t navigate_UI()
@@ -386,7 +462,7 @@ uint8_t navigate_UI()
         selected_node = UI_graph_head;
     }
 
-    uint8_t bitflags = 0;
+    uint8_t bitflags = NO_UPDATE;
 
     /*
     // use f1 as exit for now, if pressed send "1"
@@ -408,69 +484,36 @@ uint8_t navigate_UI()
 
     int in = 0;
     UI_NODE* tentative_node = NULL;
+
     do {
-        /*
-        if (selected_node->type == FORM_ELEMENT) {
-            printw("FORM\n");
-        } else if (selected_node->type == MENU_ELEMENT) {
-            printw("MENU\n");
+        if ((in = getch()) == 'x') {
+            bitflags |= accept_input(selected_node);
+        } else {
+            switch (in) {
+                case 'd':
+                    return bitflags;
+                case KEY_LEFT:
+                    tentative_node = selected_node->left;
+                    break;
+                case KEY_RIGHT:
+                    tentative_node = selected_node->right;
+                    break;
+                case KEY_UP:
+                    tentative_node = selected_node->up;
+                    break;
+                case KEY_DOWN:
+                    tentative_node = selected_node->down;
+                    break;
+            }
+
+            if (tentative_node != NULL) {
+                set_UI_node_appearance(selected_node, DIM);
+                set_UI_node_appearance(tentative_node, HOVERED);
+                selected_node = tentative_node;
+                tentative_node = NULL;
+            }
         }
-        */
-        switch ((in = getch())) {
-            case KEY_LEFT:
-                tentative_node = selected_node->left;
-                break;
-            case KEY_RIGHT:
-                tentative_node = selected_node->right;
-                break;
-            case KEY_UP:
-                tentative_node = selected_node->up;
-                break;
-            case KEY_DOWN:
-                tentative_node = selected_node->down;
-                break;
-            case 'X': // TODO: clean up this logic
-            case 'x':
-                switch (selected_node->id) {
-                    case PALETTE_GENERATION_MENU:
-                        navigate_menu(selected_node->bundle_ptr);
-                        break;
-                    case FILEPATH_FORM:
-                         accept_form_input(selected_node->bundle_ptr);
-                }
-        }
-
-        if (tentative_node == NULL) {
-            continue;
-        }
-
-        switch (selected_node->id) {
-            case PALETTE_GENERATION_MENU:
-                set_menu_bundle_inactive(selected_node->bundle_ptr);
-                break;
-            case FILEPATH_FORM:
-                set_form_bundle_inactive(selected_node->bundle_ptr);
-                break;
-            default:
-                break;
-        }
-
-        switch (tentative_node->id) {
-            case PALETTE_GENERATION_MENU:
-                set_menu_bundle_active(tentative_node->bundle_ptr);
-                break;
-            case FILEPATH_FORM:
-                set_form_bundle_active(tentative_node->bundle_ptr);
-                break;
-            default:
-                break;
-        }
-
-        selected_node = tentative_node;
-
-    } while (in != KEY_F(1));
-
-    return bitflags;
+    } while (1);
 }
 
 int compare_color_hex(PIXEL rgb1, PIXEL rgb2)

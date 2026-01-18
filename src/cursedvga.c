@@ -8,8 +8,6 @@
 #include "palette.h"
 #include "tga.h"
 
-#include <ncurses.h>
-
 // TODO: move these functions into a util file
 int is_whitespace(char c)
 {
@@ -72,83 +70,36 @@ int main(int argc, char *argv[])
     initialize_UI();
 
     IMAGE* image_data = NULL;
+    PALETTE* color_palette = NULL;
     uint8_t return_bitflags;
 
     // TODO: clean up where mallocs occur, place them in a consistent, predictable place
-    while ((return_bitflags = navigate_UI())) {
+    while ((return_bitflags = navigate_UI()) != EXIT_REQUESTED) {
         if (return_bitflags & NO_UPDATE) {
             continue;
         }
-        // how to indicate a failed read?
-        // want to assign image_data to null;
+
         if (return_bitflags & FILEPATH_UPDATE) {
+            free(image_data);
+            free(color_palette);
+
             image_data = try_read_image(trim(get_filepath()));
-
-            if (image_data != NULL) {
-                PALETTE color_palette;
-
-                generate_palette(&color_palette, image_data, COMPRESSED_216, COLOR_CUBE);
-
-                // BUG: knife.tga causes "malloc: corrupted top size" when called with FIRST_COLORS_FOUND gen method
-                initialize_palette(&color_palette);
-
-                display_image(*image_data->header, image_data->data);
-                refresh();
-            }
+            color_palette = generate_palette(image_data, COMPRESSED_216, get_palette_gen_method());
+            initialize_palette(color_palette);
         }
+
+        if (return_bitflags & PALETTE_GEN_UPDATE && image_data != NULL) {
+            free(color_palette);
+            color_palette = generate_palette(image_data, COMPRESSED_216, get_palette_gen_method());
+            initialize_palette(color_palette);
+        }
+
+        if (image_data == NULL || color_palette == NULL) {
+            continue;
+        }
+
+        display_image(*image_data->header, image_data->data);
     }
+
     end_UI();
 }
-/*
-    if (argc < 2) {
-        printf("ERR: No Filename Specified\n");
-        return 1;
-    }
-
-    const char *filename = argv[1];
-
-    FILE *file = fopen(filename, "r");
-
-    fseek(file, 0, SEEK_END);
-    int filesize = ftell(file);
-    rewind(file);
-
-    uint8_t* bytestream = malloc(filesize);
-    fread(bytestream, sizeof(uint8_t), filesize, file);
-    fclose(file);
-
-    TARGA_HEADER header = parse_header(bytestream);
-
-    printf("Path:\t\t%s\nWidth:\t\t%dpx\nHeight:\t\t%dpx\nImage Type:\t%d\nPixel Depth:\t%d-bit\n",
-           filename, header.width,
-           header.height,
-           header.image_type,
-           header.pixel_depth);
-
-    printf("\nPress enter to display...");
-    getchar();
-
-    uint64_t total_pixels = header.height * header.width;
-    PIXEL* pixel_data = malloc(total_pixels * sizeof(PIXEL));
-    parse_tga(pixel_data, bytestream);
-    free(bytestream);
-
-    // bundle everything together
-    IMAGE image = (IMAGE) {
-        header,
-        pixel_data
-    };
-    
-    PALETTE color_palette;
-
-    generate_palette(&color_palette, &image, COMPRESSED_216, FIRST_COLORS_FOUND);
-    initialize_UI();
-
-
-    initialize_palette(&color_palette);
-    display_image(header, pixel_data);//, color_palette);
-
-    getchar();
-
-    end_UI();
-    */
