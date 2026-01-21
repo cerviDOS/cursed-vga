@@ -20,7 +20,6 @@ enum GENERATION_METHOD {
     OCTREE,
     K_MEANS,
     FIRST_COLORS_FOUND
-    //MOST_COMMON_COLORS,
 };
 
 typedef struct {
