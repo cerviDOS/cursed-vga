@@ -14,7 +14,24 @@
 
 /* TODO:
  *  Document functions, split file into modules, cleanup
+ *  Refactor bundles into UI_ELEMENT struct
+ *  Use user pointer for selected item pointer
+ *  Refactor around fields already present in FORM and MENU
+ */
+
+/* Tentative UI layout, indexed by posiition on the screen as (row, col):
  *
+ *  -----------------------
+ * | (0,0) filepath form   |
+ *  -----------------------
+ * |  (1, 0)   |    (1,1)  |
+ * |  palette  |  palette  |
+ * |    gen    |   size    |
+ * |   menu    |   menu    |
+ *  -----------------------
+ *               |  (2,0)  |
+ *               | confirm |
+ *                --------
  */
 
 static const int NCURSES_PAIR_OFFSET = 4;
@@ -27,6 +44,11 @@ typedef struct {
     int size;
     char* choices[32];
 } CHOICES;
+
+typedef struct {
+    WINDOW* win;
+    char* win_title;
+} GENERIC_BUNDLE;
 
 typedef struct {
     FORM* form;
@@ -50,21 +72,6 @@ FORM_BUNDLE* filepath_bundle;
 MENU_BUNDLE* palette_gen_method_bundle;
 MENU_BUNDLE* palette_size_bundle;
 
-/* Tentative UI layout, indexed by posiition on the screen as (row, col):
- *
- *  -----------------------
- * | (0,0) filepath form   |
- *  -----------------------
- * |  (1, 0)   |    (1,1)  |
- * |  palette  |  palette  |
- * |    gen    |   size    |
- * |   menu    |   menu    |
- *  -----------------------
- *               |  (2,0)  |
- *               | confirm |
- *                --------
- */
-
 enum UI_ELEMENT_ID {
     FILEPATH_FORM = FILEPATH_UPDATE - 1,
     PALETTE_GENERATION_MENU =  PALETTE_GEN_UPDATE - 1
@@ -81,6 +88,18 @@ enum APPEARANCE {
     HOVERED,
     SELECTED
 };
+
+typedef struct {
+    enum UI_ELEMENT_TYPE type;
+    enum UI_ELEMENT_ID id;
+    WINDOW* win;
+    char* win_title;
+    union {
+        FORM* form;
+        MENU* menu;
+        char* button_title;
+    };
+} UI_ELEMENT;
 
 typedef struct UI_NODE {
     void* bundle_ptr;
@@ -113,15 +132,26 @@ void draw_frame_with_title(WINDOW* win, char* text)
     attach_title_to_win(win, text);
 }
 
+void draw_double_wide_frame_with_title(WINDOW* win, char* text)
+{
+    cchar_t horiz, vert, top_left, top_right, bot_left, bot_right;
+    setcchar(&horiz, L"\u2550", 0, 0, NULL);
+    setcchar(&vert, L"\u2551", 0, 0, NULL);
+    setcchar(&top_left, L"\u2554", 0, 0, NULL);
+    setcchar(&top_right, L"\u2557", 0, 0, NULL);
+    setcchar(&bot_left, L"\u255A", 0, 0, NULL);
+    setcchar(&bot_right, L"\u255D", 0, 0, NULL);
+
+    wborder_set(win, &vert, &vert, &horiz, &horiz, &top_left, &top_right, &bot_left, &bot_right);
+
+    attach_title_to_win(win, text);
+}
 
 void set_menu_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearance)
 {
-    
     MENU_BUNDLE* menu_bundle = (MENU_BUNDLE*) bundle_ptr;
 
     int attr = 0;
-    cchar_t top, bottom, left, right, tlcorner, trcorner, blcorner, brcorner;
-
 
     switch (appearance) {
         case DIM:
@@ -132,17 +162,17 @@ void set_menu_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
             break;
         case SELECTED:
             attr = 0;
-            
             break;
     }
 
     wattrset(menu_bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
-    //box(menu_bundle->win, border_char, border_char);
-    //wborder_set(menu_bundle->win, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *, const cchar_t *)
 
-    wborder_set(menu_bundle->win, 0, 0, 0, 0, 0, 0, 0, 0);
+    if (appearance == SELECTED) {
+        draw_double_wide_frame_with_title(menu_bundle->win, menu_bundle->win_title);
+    } else {
+        draw_frame_with_title(menu_bundle->win, menu_bundle->win_title);
+    }
 
-    attach_title_to_win(menu_bundle->win, menu_bundle->win_title);
     set_menu_fore(menu_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_REVERSE | attr);
     set_menu_back(menu_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
     set_menu_grey(menu_bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR) | attr);
@@ -153,9 +183,7 @@ void set_menu_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
 void set_form_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearance)
 {
     FORM_BUNDLE* form_bundle = (FORM_BUNDLE*) bundle_ptr;
-
     int attr = 0;
-    char border_char = 0;
     switch (appearance) {
         case DIM:
             attr = A_DIM;
@@ -165,13 +193,17 @@ void set_form_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
             break;
         case SELECTED:
             attr = 0;
-            border_char = '$';
             break;
     }
 
     wattrset(form_bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
-    box(form_bundle->win, border_char, border_char);
-    attach_title_to_win(form_bundle->win, form_bundle->win_title);
+
+    if (appearance == SELECTED) {
+        draw_double_wide_frame_with_title(form_bundle->win, form_bundle->win_title);
+    } else {
+        draw_frame_with_title(form_bundle->win, form_bundle->win_title);
+    }
+
     set_field_back(current_field(form_bundle->form), A_STANDOUT | attr);
     mvwprintw(filepath_bundle->win, 1, 1, "filepath:"); // NOTE: temp value, should be made more modular in the future
     wrefresh(form_bundle->win);
@@ -179,6 +211,7 @@ void set_form_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
 
 void set_UI_node_appearance(const UI_NODE* node, enum APPEARANCE appearance)
 {
+
     void (*set_appearance_fn)(const void*, enum APPEARANCE);
     switch(node->type) {
         case FORM_TYPE:
@@ -210,9 +243,6 @@ ITEM** init_items(CHOICES* choices)
 
 void initialize_UI()
 {
-    // form for file path
-    // menu for palette size:
-    // menu for palette generation
     setlocale(LC_ALL, "");
 
     initscr();
@@ -353,11 +383,10 @@ void initialize_UI()
     // Set filepath node as head
     UI_graph_head = filepath_node;
 
-    /**** Dim all on startup ****/
+    /**** Dim all but currently filepath form on startup ****/
 
-    set_UI_node_appearance(filepath_node, DIM);
+    set_UI_node_appearance(filepath_node, HOVERED);
     set_UI_node_appearance(palette_gen_node, DIM);
-
 }
 
 void end_UI()
@@ -402,13 +431,15 @@ int accept_form_input(void* bundle_ptr)
     return modified;
 }
 
+// BUG: User can select invalid options
 int accept_menu_input(MENU_BUNDLE* bundle_ptr)
 {
     MENU_BUNDLE* menu_bundle = (MENU_BUNDLE*) bundle_ptr;
 
     int in = '\0';
+    int done = 0;
     int modified = 0;
-    ITEM* curr;
+    ITEM* curr = NULL;
 
     do {
         switch((in = wgetch(menu_bundle->win))) {
@@ -421,14 +452,19 @@ int accept_menu_input(MENU_BUNDLE* bundle_ptr)
             case KEY_ENTER:
             case 10:
                 curr = current_item(menu_bundle->menu);
+
                 if (item_opts(curr) & O_SELECTABLE) {
-                    menu_bundle->selected_item = curr;
+                    done = 1;
+                }
+
+                if (curr != menu_bundle->selected_item) {
                     modified = 1;
+                    menu_bundle->selected_item = curr;
                 }
                 break;
         }
         wrefresh(menu_bundle->win);
-    } while(in != 10); // 10: Enter key pressed
+    } while(!done); // 10: Enter key pressed
 
     return modified;
 }
@@ -464,24 +500,6 @@ uint8_t navigate_UI()
 
     uint8_t bitflags = NO_UPDATE;
 
-    /*
-    // use f1 as exit for now, if pressed send "1"
-    //bitflags |= accept_form_input(filepath_bundle);
-    bitflags |= navigate_menu(palette_gen_method_bundle);
-    */
-
-    // interact with program with keyboard up down left right
-    // menus, forms, buttons, arranged as grid,
-    // press x to select
-    // F1 to exit
-
-    // Want to dim all widgets but the selected one, need to know:
-    // Whether the widget is a form or menu
-    // The widget previously selected
-
-    // 2D array of "widget structs" that store void pointer to 
-    // the bundle and an enum that indicates what type of widget it is
-
     int in = 0;
     UI_NODE* tentative_node = NULL;
 
@@ -490,7 +508,9 @@ uint8_t navigate_UI()
             bitflags |= accept_input(selected_node);
         } else {
             switch (in) {
-                case 'd':
+                case KEY_F(1):
+                    return EXIT_REQUESTED;
+                case 'd': // temp to emulate "confirm" button
                     return bitflags;
                 case KEY_LEFT:
                     tentative_node = selected_node->left;

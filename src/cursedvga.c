@@ -74,11 +74,15 @@ int main(int argc, char *argv[])
     uint8_t return_bitflags;
 
     // TODO: clean up where mallocs occur, place them in a consistent, predictable place
+    // BUG: possible double free, malloc(): invalid next size (unsorted)
+    //      occurs when switching between COLOR_CUBE and FIRST_COLORS_FOUND
     while ((return_bitflags = navigate_UI()) != EXIT_REQUESTED) {
         if (return_bitflags & NO_UPDATE) {
             continue;
         }
 
+        // TODO: this logic might be leading to the seg fault,
+        // investigate
         if (return_bitflags & FILEPATH_UPDATE) {
             free(image_data);
             free(color_palette);
