@@ -13,10 +13,10 @@
 #include "UI.h"
 
 /* TODO:
- *  Document functions, split file into modules, cleanup
- *  Refactor bundles into UI_ELEMENT struct
- *  Use user pointer for selected item pointer
- *  Refactor around fields already present in FORM and MENU
+ *  -Document functions, split file into modules, cleanup
+ *  -Refactor bundles into UI_ELEMENT struct
+ *  -Use user pointer for selected item pointer
+ *  -Refactor around fields already present in FORM and MENU
  */
 
 /* Tentative UI layout, indexed by posiition on the screen as (row, col):
@@ -37,8 +37,10 @@
 static const int NCURSES_PAIR_OFFSET = 4;
 static const int NCURSES_COLOR_OFFSET = 16;
 
-static int ACTIVE_UI_ELEM_COLOR_PAIR = 1;
-static int INVALID_UI_ELEM_COLOR_PAIR = 2;
+static const int ACTIVE_UI_ELEM_COLOR_PAIR = 1;
+static const int INVALID_UI_ELEM_COLOR_PAIR = 2;
+static const int INACTIVE_UI_ELEM_COLOR_PAIR = 3;
+static const int INACTIVE_INVALID_UI_ELEM_COLOR_PAIR = 4;
 
 typedef struct {
     int size;
@@ -151,21 +153,24 @@ void set_menu_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
 {
     MENU_BUNDLE* menu_bundle = (MENU_BUNDLE*) bundle_ptr;
 
-    int attr = 0;
-
+    int standard_pair = ACTIVE_UI_ELEM_COLOR_PAIR;
+    int invalid_pair = INVALID_UI_ELEM_COLOR_PAIR;
     switch (appearance) {
         case DIM:
-            attr = A_DIM;
+            standard_pair = INACTIVE_UI_ELEM_COLOR_PAIR;
+            invalid_pair = INACTIVE_INVALID_UI_ELEM_COLOR_PAIR;
             break;
         case HOVERED:
-            attr = 0;
+            standard_pair = ACTIVE_UI_ELEM_COLOR_PAIR;
+            invalid_pair = INVALID_UI_ELEM_COLOR_PAIR;
             break;
         case SELECTED:
-            attr = 0;
+            standard_pair = ACTIVE_UI_ELEM_COLOR_PAIR;
+            invalid_pair = INVALID_UI_ELEM_COLOR_PAIR;
             break;
     }
 
-    wattrset(menu_bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
+    wattrset(menu_bundle->win, COLOR_PAIR(standard_pair));
 
     if (appearance == SELECTED) {
         draw_double_wide_frame_with_title(menu_bundle->win, menu_bundle->win_title);
@@ -173,30 +178,29 @@ void set_menu_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
         draw_frame_with_title(menu_bundle->win, menu_bundle->win_title);
     }
 
-    set_menu_fore(menu_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | A_REVERSE | attr);
-    set_menu_back(menu_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
-    set_menu_grey(menu_bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR) | attr);
-    set_menu_grey(menu_bundle->menu, COLOR_PAIR(INVALID_UI_ELEM_COLOR_PAIR) | attr);
+    set_menu_fore(menu_bundle->menu, COLOR_PAIR(standard_pair) | A_STANDOUT);
+    set_menu_back(menu_bundle->menu, COLOR_PAIR(standard_pair));
+    set_menu_grey(menu_bundle->menu, COLOR_PAIR(invalid_pair));
     wrefresh(menu_bundle->win);
 }
 
 void set_form_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearance)
 {
     FORM_BUNDLE* form_bundle = (FORM_BUNDLE*) bundle_ptr;
-    int attr = 0;
+    int pair = ACTIVE_UI_ELEM_COLOR_PAIR;
     switch (appearance) {
         case DIM:
-            attr = A_DIM;
+            pair = INACTIVE_UI_ELEM_COLOR_PAIR;
             break;
         case HOVERED:
-            attr = 0;
+            pair = ACTIVE_UI_ELEM_COLOR_PAIR;
             break;
         case SELECTED:
-            attr = 0;
+            pair = ACTIVE_UI_ELEM_COLOR_PAIR;
             break;
     }
 
-    wattrset(form_bundle->win, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR) | attr);
+    wattrset(form_bundle->win, COLOR_PAIR(pair));
 
     if (appearance == SELECTED) {
         draw_double_wide_frame_with_title(form_bundle->win, form_bundle->win_title);
@@ -204,7 +208,7 @@ void set_form_bundle_appearance(const void* bundle_ptr, enum APPEARANCE appearan
         draw_frame_with_title(form_bundle->win, form_bundle->win_title);
     }
 
-    set_field_back(current_field(form_bundle->form), A_STANDOUT | attr);
+    set_field_back(current_field(form_bundle->form), A_STANDOUT);
     mvwprintw(filepath_bundle->win, 1, 1, "filepath:"); // NOTE: temp value, should be made more modular in the future
     wrefresh(form_bundle->win);
 }
@@ -255,14 +259,29 @@ void initialize_UI()
 
     /**** Initialize Color Pairs ****/
 
-    int INVALID_GREY = 8;
-    init_color(INVALID_GREY,
+    int INVALID = 8;
+    int INACTIVE = 9;
+    int INACTIVE_INVALID = 10;
+
+    init_color(INVALID,
+               500,
+               500,
+               500);
+    
+    init_color(INACTIVE,
                500,
                500,
                500);
 
-    alloc_pair(COLOR_WHITE, COLOR_BLACK);
-    alloc_pair(INVALID_GREY, COLOR_BLACK);
+    init_color(INACTIVE_INVALID,
+               250,
+               250,
+               250);
+
+    alloc_pair(COLOR_WHITE, COLOR_BLACK); // pair 1, ACTIVE_UI_ELEM_COLOR_PAIR
+    alloc_pair(INVALID, COLOR_BLACK); // pair 2, INVALID_UI_ELEM_COLOR_PAIR
+    alloc_pair(INACTIVE, COLOR_BLACK); // pair 3, INACTIVE_UI_ELEM_COLOR_PAIR
+    alloc_pair(INACTIVE_INVALID, COLOR_BLACK); // pair 4, INACTIVE_INVALID_UI_ELEM_COLOR_PAIR
 
     /**** Initialize Filepath Form ****/
 
@@ -327,7 +346,7 @@ void initialize_UI()
     palette_gen_method_bundle->menu = new_menu(palette_items);
     palette_gen_method_bundle->selected_item = current_item(palette_gen_method_bundle->menu);
 
-    set_menu_fore(palette_gen_method_bundle->menu, A_REVERSE);
+    set_menu_fore(palette_gen_method_bundle->menu, A_STANDOUT);
     //set_menu_back(palette_gen_method_bundle->menu, COLOR_PAIR(ACTIVE_UI_ELEM_COLOR_PAIR));
     set_menu_grey(palette_gen_method_bundle->menu, A_DIM);
 
