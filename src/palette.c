@@ -72,7 +72,9 @@ void gp_first_colors(PALETTE* palette, const IMAGE* image)
     }
 }
 
-PALETTE* generate_palette(const IMAGE* image, enum PALETTE_SIZE size, enum GENERATION_METHOD gen_method)
+// Maybe swap back to out param? Avoid excessive mallocs everytime a new palette is generated
+// Need a way to avoid leftover data though
+PALETTE* generate_new_palette(const IMAGE* image, enum PALETTE_SIZE size, enum GENERATION_METHOD gen_method)
 {
     PALETTE* palette = malloc(sizeof(PALETTE));
 
@@ -91,4 +93,10 @@ PALETTE* generate_palette(const IMAGE* image, enum PALETTE_SIZE size, enum GENER
     }
 
     return palette;
+}
+
+void destroy_palette(PALETTE *palette)
+{
+    free(palette->data);
+    free(palette);
 }

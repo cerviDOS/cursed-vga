@@ -28,8 +28,17 @@ typedef struct {
     PIXEL* data;
 } PALETTE;
 
-PALETTE* generate_palette(const IMAGE* image,
+PALETTE* generate_new_palette(const IMAGE* image,
                       enum PALETTE_SIZE size,
                       enum GENERATION_METHOD gen_method);
+
+/*
+void generate_palette(PALETTE* palette,
+                      const IMAGE* image,
+                      enum GENERATION_METHOD gen_method);
+*/
+
+void destroy_palette(PALETTE* palette);
+
 
 #endif

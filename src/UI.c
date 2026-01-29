@@ -74,9 +74,10 @@ FORM_BUNDLE* filepath_bundle;
 MENU_BUNDLE* palette_gen_method_bundle;
 MENU_BUNDLE* palette_size_bundle;
 
+// TODO: refactor, heavily coupled to enum in header
 enum UI_ELEMENT_ID {
-    FILEPATH_FORM = FILEPATH_UPDATE - 1,
-    PALETTE_GENERATION_MENU =  PALETTE_GEN_UPDATE - 1
+    FILEPATH_FORM = 0,
+    PALETTE_GENERATION_MENU = 1
 };
 
 enum UI_ELEMENT_TYPE {
@@ -115,6 +116,8 @@ typedef struct UI_NODE {
 
 const UI_NODE* UI_graph_head;
 
+// TODO: refactor this, too coupled with lifetime of another pointer
+// maybe copy?
 const PALETTE* curr_color_palette;
 
 void attach_title_to_win(WINDOW* win, char* text)
@@ -419,7 +422,7 @@ char* get_filepath()
     return field_buffer(current_field(filepath_bundle->form), 0);
 }
 
-enum GENERATION_METHOD get_palette_gen_method()
+enum GENERATION_METHOD get_selected_palette_gen_method()
 {
     return item_index(palette_gen_method_bundle->selected_item);
 }
@@ -496,10 +499,10 @@ int accept_input(const UI_NODE* node)
 
     switch(node->type) {
         case FORM_TYPE:
-            ret = accept_form_input(node->bundle_ptr) << node->id;
+            ret = accept_form_input(node->bundle_ptr);
             break;
         case MENU_TYPE:
-            ret = accept_menu_input(node->bundle_ptr) << node->id;
+            ret = accept_menu_input(node->bundle_ptr);
             break;
         case BUTTON_TYPE:
             break;
@@ -507,7 +510,7 @@ int accept_input(const UI_NODE* node)
 
     set_UI_node_appearance(node, HOVERED);
 
-    return ret;
+    return ret << node->id;
 }
 
 uint8_t navigate_UI()

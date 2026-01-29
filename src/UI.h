@@ -17,9 +17,10 @@ void end_UI();
 // returns bitflag byte aligning with STATUS_FLAGS enum
 uint8_t navigate_UI();
 char* get_filepath();
-enum GENERATION_METHOD get_palette_gen_method();
+enum GENERATION_METHOD get_selected_palette_gen_method();
 
 void initialize_palette(PALETTE* color_palette);
 void display_image(TARGA_HEADER header, PIXEL* pixel_data);
+
 
 #endif

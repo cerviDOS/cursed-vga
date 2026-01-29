@@ -51,4 +51,12 @@ static const char* const TGA_SIGNATURE = "TRUEVISION-XFILE";
 PIXEL* parse_tga(const void* bytestream);
 TARGA_HEADER* parse_header(const void* bytestream);
 
+
+
+//IMAGE* parse_tga(const uint8_t* bytestream);
+//TARGA_HEADER* parse_tga_header(const uint8_t* bytestream);
+//void destroy_tga(IMAGE* img);
+// 
+
+
 #endif

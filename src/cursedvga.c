@@ -8,6 +8,8 @@
 #include "palette.h"
 #include "tga.h"
 
+#include <ncurses.h>
+
 // TODO: move these functions into a util file
 int is_whitespace(char c)
 {
@@ -63,7 +65,7 @@ IMAGE* try_read_image(const char* filepath)
     };
 
     return image_data;
-}
+    }
 
 int main(int argc, char *argv[])
 {
@@ -76,33 +78,36 @@ int main(int argc, char *argv[])
     // TODO: clean up where mallocs occur, place them in a consistent, predictable place
     // BUG: Switching between palette generation methods
     // cases a malloc(): corrupted top size. MacOS unaffected
+    //
+    // BUG:: freeze if directory is chosen
     while ((return_bitflags = navigate_UI()) != EXIT_REQUESTED) {
-        if (return_bitflags & NO_UPDATE) {
+        if (return_bitflags == NO_UPDATE) {
             continue;
         }
 
-        // TODO: this logic might be leading to the seg fault,
-        // investigate
+        // Bitflags indicate an update, therefore current palette is outdated, so
+        // so destroy it
+        if (color_palette != NULL) {
+            destroy_palette(color_palette);
+        }
+
         if (return_bitflags & FILEPATH_UPDATE) {
-            free(image_data);
-            free(color_palette);
+            if (image_data != NULL) { // free if not null
+                free(image_data);
+            }
 
             image_data = try_read_image(trim(get_filepath()));
-            color_palette = generate_palette(image_data, COMPRESSED_216, get_palette_gen_method());
-            initialize_palette(color_palette);
+            color_palette = generate_new_palette(image_data, COMPRESSED_216, get_selected_palette_gen_method());
         }
 
         if (return_bitflags & PALETTE_GEN_UPDATE && image_data != NULL) {
-            free(color_palette);
-            color_palette = generate_palette(image_data, COMPRESSED_216, get_palette_gen_method());
+            color_palette = generate_new_palette(image_data, COMPRESSED_216, get_selected_palette_gen_method());
+        }
+
+        if (image_data != NULL && color_palette != NULL) {
             initialize_palette(color_palette);
+            display_image(*image_data->header, image_data->data);
         }
-
-        if (image_data == NULL || color_palette == NULL) {
-            continue;
-        }
-
-        display_image(*image_data->header, image_data->data);
     }
 
     end_UI();
