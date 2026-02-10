@@ -67,4 +67,10 @@ TARGA_HEADER* parse_header(const void* bytestream)
     return header;
 }
 
+void destroy_tga(IMAGE *img)
+{
+    free(img->header);
+    free(img->data);
+    free(img);
+}
 

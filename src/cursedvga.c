@@ -4,9 +4,11 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "UI.h"
-#include "palette.h"
-#include "tga.h"
+//#include "UI.h"
+//#include "palette.h"
+//#include "tga.h"
+
+#include "UI/ui.h"
 
 #include <ncurses.h>
 
@@ -65,50 +67,46 @@ IMAGE* try_read_image(const char* filepath)
     };
 
     return image_data;
-    }
+}
+
+// TODO: clean up where mallocs occur, place them in a consistent, predictable place
+// BUG: Switching between palette generation methods
+// cases a malloc(): corrupted top size. MacOS unaffected
+//
+// BUG:: freeze if directory is chosen
 
 int main(int argc, char *argv[])
 {
-    initialize_UI();
+    initialize_ui();
 
     IMAGE* image_data = NULL;
     PALETTE* color_palette = NULL;
-    uint8_t return_bitflags;
 
-    // TODO: clean up where mallocs occur, place them in a consistent, predictable place
-    // BUG: Switching between palette generation methods
-    // cases a malloc(): corrupted top size. MacOS unaffected
-    //
-    // BUG:: freeze if directory is chosen
-    while ((return_bitflags = navigate_UI()) != EXIT_REQUESTED) {
-        if (return_bitflags == NO_UPDATE) {
+    UI_RETURN_DATA ret;
+    while (1) {
+        ret = navigate_ui();
+        //image_data = try_read_image(trim(ret.req_filepath));
+
+        if (image_data != NULL) {
+            destroy_tga(image_data);
+        }
+
+        image_data = try_read_image("../sample images/knife.tga");
+
+        if (image_data == NULL) {
             continue;
         }
 
-        // Bitflags indicate an update, therefore current palette is outdated, so
-        // so destroy it
         if (color_palette != NULL) {
             destroy_palette(color_palette);
         }
+        color_palette = generate_new_palette(image_data,
+                                             ret.req_palette_size,
+                                             ret.req_gen_method);
 
-        if (return_bitflags & FILEPATH_UPDATE) {
-            if (image_data != NULL) { // free if not null
-                free(image_data);
-            }
-
-            image_data = try_read_image(trim(get_filepath()));
-            color_palette = generate_new_palette(image_data, COMPRESSED_216, get_selected_palette_gen_method());
-        }
-
-        if (return_bitflags & PALETTE_GEN_UPDATE && image_data != NULL) {
-            color_palette = generate_new_palette(image_data, COMPRESSED_216, get_selected_palette_gen_method());
-        }
-
-        if (image_data != NULL && color_palette != NULL) {
-            initialize_palette(color_palette);
-            display_image(*image_data->header, image_data->data);
-        }
+        display_image(image_data, color_palette);
     }
 
-    end_UI();
+    getchar();
+    destroy_ui();
 }

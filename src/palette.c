@@ -4,7 +4,7 @@
 void gp_color_cube(PALETTE* palette)
 {
     PIXEL* data = palette->data;
-
+    
     int curr_idx = 0;
 
     int red_val = 0;
@@ -56,7 +56,7 @@ int put_if_absent(PALETTE* palette, PIXEL new_pixel, int num_elems)
             return -1;
         }
     }
-    palette->data[num_elems+1] = new_pixel;
+    palette->data[num_elems] = new_pixel;
     return 0;
 }
 
@@ -67,7 +67,7 @@ void gp_first_colors(PALETTE* palette, const IMAGE* image)
     for (int img_index = 0; img_index < total_pixels && num_elems < palette->size; img_index++) {
         PIXEL p = image->data[img_index];
         if (put_if_absent(palette, p, num_elems) != -1) {
-            num_elems++;
+           num_elems++;
         }
     }
 }
@@ -78,7 +78,12 @@ PALETTE* generate_new_palette(const IMAGE* image, enum PALETTE_SIZE size, enum G
 {
     PALETTE* palette = malloc(sizeof(PALETTE));
 
+    // FIX: temp fix to prevent crash when choosing a non 216 sized color palette 
+    size = (gen_method == COLOR_CUBE) ? COMPRESSED_216 : size;
+
     palette->size = size;
+
+
     palette->data = malloc(size * sizeof(PIXEL));
 
     switch (gen_method) {
