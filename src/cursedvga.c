@@ -85,13 +85,12 @@ int main(int argc, char *argv[])
     UI_RETURN_DATA ret;
     while (1) {
         ret = navigate_ui();
-        //image_data = try_read_image(trim(ret.req_filepath));
 
         if (image_data != NULL) {
             destroy_tga(image_data);
         }
 
-        image_data = try_read_image("../sample images/knife.tga");
+        image_data = try_read_image(trim(ret.req_filepath));
 
         if (image_data == NULL) {
             continue;
@@ -100,6 +99,7 @@ int main(int argc, char *argv[])
         if (color_palette != NULL) {
             destroy_palette(color_palette);
         }
+
         color_palette = generate_new_palette(image_data,
                                              ret.req_palette_size,
                                              ret.req_gen_method);

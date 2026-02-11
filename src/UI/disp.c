@@ -5,9 +5,6 @@
 #include "../palette.h"
 #include "ui.h"
 
-// how should the color palette and color offsets be handled?
-// dont want to couple with other files
-
 static PALETTE* curr_color_palette;
 
 int compare_color_hex(PIXEL rgb1, PIXEL rgb2)
