@@ -20,6 +20,10 @@ MENU* create_menu(char **choices,
                   int w);
 
 
+UI_ELEMENT* create_button_ui_element(char* label,
+                                     int y_pos,
+                                     int x_pos);
+
 UI_ELEMENT* create_field_ui_element(char* label,
                                     int form_buf_width,
                                     int y_pos,
@@ -28,6 +32,8 @@ UI_ELEMENT* create_field_ui_element(char* label,
 
 UI_ELEMENT* create_menu_ui_element(char** choices,
                                    int num_choices,
+                                   int req_height,
+                                   int req_width,
                                    int y_pos,
                                    int x_pos,
                                    char* window_title);

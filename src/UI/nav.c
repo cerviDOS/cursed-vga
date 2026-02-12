@@ -12,7 +12,15 @@ void initialize_navigator(UI_ELEMENT** elements_in, int num_elements)
         elements[i] = elements_in[i];
 
         set_ui_element_appearance(elements[i], DIM);
-        elements[i]->callback_fn(elements[i]);
+
+        // Call all callbacks to set default values in each form/menu.
+        // Assumes that button callbacks are "on press" actions, so
+        // ignore those callbacks until an actual press occurs.
+        // In the future, might be worth making this the responsibility of the
+        // caller (e.g. set defaults explicitly in init())
+        if (elements[i]->type != BUTTON_T) {
+            elements[i]->callback_fn(elements[i]);
+        }
     }
 
     curr = elements[0];
@@ -36,7 +44,7 @@ void accept_menu_input(MENU* menu)
                 menu_driver(menu, REQ_UP_ITEM);
                 break;
             case KEY_ENTER:
-            case 10:
+            case 10: // 10: Enter key pressed
                 curr = current_item(menu);
                 if (item_opts(curr) & O_SELECTABLE) {
                     return;
@@ -44,7 +52,7 @@ void accept_menu_input(MENU* menu)
                     continue;
                 }
         }
-    } while(1); // 10: Enter key pressed
+    } while(1);
 }
 
 void accept_form_input(FORM* form)
@@ -82,6 +90,7 @@ void accept_input(UI_ELEMENT* element)
         case BUTTON_T:
             break;
     }
+    element->callback_fn(element);
 }
 
 void nav_act(enum ACTION action)
@@ -105,8 +114,6 @@ void nav_act(enum ACTION action)
             set_ui_element_appearance(curr, SELECTED);
             accept_input(curr);
             set_ui_element_appearance(curr, HOVERED);
-
-            curr->callback_fn(curr);
             break;
     }
 

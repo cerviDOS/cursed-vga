@@ -4,13 +4,10 @@
 #include <string.h>
 #include <unistd.h>
 
-//#include "UI.h"
-//#include "palette.h"
-//#include "tga.h"
+#include "palette.h"
+#include "tga.h"
 
 #include "UI/ui.h"
-
-#include <ncurses.h>
 
 // TODO: move these functions into a util file
 int is_whitespace(char c)
@@ -83,6 +80,7 @@ int main(int argc, char *argv[])
     PALETTE* color_palette = NULL;
 
     UI_RETURN_DATA ret;
+
     while (1) {
         ret = navigate_ui();
 

@@ -92,9 +92,8 @@ void display_color_pair(WINDOW* win, int y, int x, uint16_t fg, uint16_t bg)
 
 void draw_image(WINDOW *canvas, IMAGE* image)
 {
-    //WINDOW* img_win = newwin(header.height*4, header.width*4, 0, 52);
     TARGA_HEADER* header = image->header;
-    wresize(canvas, header->height, header->width);
+    wresize(canvas, header->height >> 1, header->width);
 
     int pixel_pos = 0;
     for (int row = 0; row < (header->height / 2); row++) {

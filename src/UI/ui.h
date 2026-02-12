@@ -5,7 +5,7 @@
 #include "../palette.h"
 
 typedef struct {
-    char req_filepath[4096];
+    char req_filepath[512]; // BUG: trace trap if too small, corrupts memory if too big
     enum GENERATION_METHOD req_gen_method;
     enum PALETTE_SIZE req_palette_size;
 } UI_RETURN_DATA;
