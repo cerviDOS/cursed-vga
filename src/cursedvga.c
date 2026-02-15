@@ -1,21 +1,46 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-#include "UI.h"
 #include "palette.h"
 #include "tga.h"
 
-int main(int argc, char *argv[])
+#include "UI/ui.h"
+
+// TODO: move these functions into a util file
+int is_whitespace(char c)
 {
-    if (argc < 2) {
-        printf("ERR: No Filename Specified\n");
-        return 1;
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\12';
+}
+
+char* ltrim(char* str)
+{
+    while (*str && is_whitespace(*str)) str++;
+    return str;
+}
+
+char* rtrim(char* str)
+{
+    char* end = str + strlen(str);
+    while(*str && is_whitespace(*--end));
+    *(end+1) = '\0';
+    return str;
+}
+
+char* trim(char* str)
+{
+    return rtrim(ltrim(str));
+}
+
+IMAGE* try_read_image(const char* filepath)
+{
+    if (access(filepath, F_OK) != 0) {
+        return NULL;
     }
 
-    const char *filename = argv[1];
-
-    FILE *file = fopen(filename, "r");
+    FILE* file = fopen(filepath, "r");
 
     fseek(file, 0, SEEK_END);
     int filesize = ftell(file);
@@ -25,38 +50,61 @@ int main(int argc, char *argv[])
     fread(bytestream, sizeof(uint8_t), filesize, file);
     fclose(file);
 
-    TARGA_HEADER header = parse_header(bytestream);
+    TARGA_HEADER* header = parse_header(bytestream);
 
-    printf("Path:\t\t%s\nWidth:\t\t%dpx\nHeight:\t\t%dpx\nImage Type:\t%d\nPixel Depth:\t%d-bit\n",
-           filename, header.width,
-           header.height,
-           header.image_type,
-           header.pixel_depth);
-
-    printf("\nPress enter to display...");
-    getchar();
-
-    uint64_t total_pixels = header.height * header.width;
-    PIXEL* pixel_data = malloc(total_pixels * sizeof(PIXEL));
-    parse_tga(pixel_data, bytestream);
+    uint64_t total_pixels = header->height * header->width;
+    PIXEL* pixel_data = parse_tga(bytestream);
     free(bytestream);
 
     // bundle everything together
-    IMAGE image = (IMAGE) {
+    IMAGE* image_data = malloc(sizeof(IMAGE));
+    *image_data = (IMAGE) {
         header,
         pixel_data
     };
 
-    PALETTE color_palette;
+    return image_data;
+}
 
-    generate_palette(&color_palette, &image, COMPRESSED_216, FIRST_COLORS_FOUND);
-    initialize_UI();
+// TODO: clean up where mallocs occur, place them in a consistent, predictable place
+// BUG: Switching between palette generation methods
+// cases a malloc(): corrupted top size. MacOS unaffected
+//
+// BUG:: freeze if directory is chosen
 
-    initialize_palette(&color_palette);
-    display_image(header, pixel_data);//, color_palette);
+int main(int argc, char *argv[])
+{
+    initialize_ui();
+
+    IMAGE* image_data = NULL;
+    PALETTE* color_palette = NULL;
+
+    UI_RETURN_DATA ret;
+
+    while (1) {
+        ret = navigate_ui();
+
+        if (image_data != NULL) {
+            destroy_tga(image_data);
+        }
+
+        image_data = try_read_image(trim(ret.req_filepath));
+
+        if (image_data == NULL) {
+            continue;
+        }
+
+        if (color_palette != NULL) {
+            destroy_palette(color_palette);
+        }
+
+        color_palette = generate_new_palette(image_data,
+                                             ret.req_palette_size,
+                                             ret.req_gen_method);
+
+        display_image(image_data, color_palette);
+    }
 
     getchar();
-
-    end_UI();
-    return 0;
+    destroy_ui();
 }

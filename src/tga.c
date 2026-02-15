@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "tga.h"
@@ -22,18 +21,20 @@ void parse_raw_packet(PIXEL* pixmap, uint64_t insert_index, uint8_t packet_pixel
     }
 }
 
-void parse_tga(PIXEL* pixel_data, const void* bytestream)
+PIXEL* parse_tga(const void* bytestream)
 {
     uint8_t* stream_pos = (uint8_t*) bytestream + sizeof(TARGA_HEADER);
-    TARGA_HEADER header = parse_header(bytestream);
-    int remaining_pixels = header.height * header.width;
+    TARGA_HEADER* header = parse_header(bytestream);
+    int remaining_pixels = header->height * header->width;
+
+    PIXEL* pixel_data = malloc(sizeof(PIXEL) * remaining_pixels);
 
     // Insert backwards row-by-row so the result array
     // starts with the top left pixel at index 0
-    int insert_start_index = remaining_pixels - header.width;
+    int insert_start_index = remaining_pixels - header->width;
     while (insert_start_index >= 0) {
         int row_pos = insert_start_index;
-        int row_limit = row_pos + header.width;
+        int row_limit = row_pos + header->width;
 
         while (row_pos < row_limit) {
             uint8_t packet_header = *stream_pos++;
@@ -53,15 +54,23 @@ void parse_tga(PIXEL* pixel_data, const void* bytestream)
 
             row_pos += pixel_count;
         }
-        insert_start_index -= header.width;
+        insert_start_index -= header->width;
     }
+
+    return pixel_data;
 }
 
-TARGA_HEADER parse_header(const void* bytestream)
+TARGA_HEADER* parse_header(const void* bytestream)
 {
-    TARGA_HEADER res;
-    memcpy(&res, bytestream, sizeof(TARGA_HEADER));
-    return res;
+    TARGA_HEADER* header = malloc(sizeof(TARGA_HEADER));
+    memcpy(header, bytestream, sizeof(TARGA_HEADER));
+    return header;
 }
 
+void destroy_tga(IMAGE *img)
+{
+    free(img->header);
+    free(img->data);
+    free(img);
+}
 

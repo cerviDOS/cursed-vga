@@ -1,30 +1,11 @@
 #define _XOPEN_SOURCE_EXTENDED
 
 #include <ncurses.h>
-#include <wchar.h>
-#include <wctype.h>
-#include <locale.h>
+#include "../tga.h"
+#include "../palette.h"
+#include "ui.h"
 
-#include "UI.h"
-
-static const int NCURSES_PAIR_OFFSET = 2;
-static const int NCURSES_COLOR_OFFSET = 8;
-
-PALETTE* curr_color_palette;
-
-void initialize_UI()
-{
-    setlocale(LC_ALL, "");
-
-    initscr();
-    curs_set(0);
-    start_color();
-}
-
-void end_UI()
-{
-    endwin();
-}
+static PALETTE* curr_color_palette;
 
 int compare_color_hex(PIXEL rgb1, PIXEL rgb2)
 {
@@ -44,7 +25,6 @@ int dist_squared(PIXEL rgb1, PIXEL rgb2)
     return square(rgb2.red_val - rgb1.red_val)
     + square(rgb2.green_val - rgb1.green_val)
     + square(rgb2.blue_val - rgb1.blue_val);
-
 }
 
 int find_nearest_color(PIXEL target_color)
@@ -61,7 +41,7 @@ int find_nearest_color(PIXEL target_color)
             shortest_dist = curr_dist;
         }
     }
-    return closest_index + NCURSES_COLOR_OFFSET;
+    return closest_index + NUM_RESERVED_COLORS;
 }
 
 // Returns the color pair number matching the given fg & bg combination.
@@ -85,13 +65,14 @@ void initialize_palette(PALETTE* color_palette)
     const double color_scale = 1000.0 / 255.0;
     for (int i = 0; i < color_palette->size; i++) {
         PIXEL curr = color_palette->data[i];
-        init_color(i + NCURSES_COLOR_OFFSET,
+
+        init_color((i + NUM_RESERVED_COLORS),
                    curr.red_val * color_scale,
                    curr.green_val * color_scale,
                    curr.blue_val * color_scale);
     }
-
     curr_color_palette = color_palette;
+    
 }
 
 void display_color_pair(WINDOW* win, int y, int x, uint16_t fg, uint16_t bg)
@@ -109,44 +90,41 @@ void display_color_pair(WINDOW* win, int y, int x, uint16_t fg, uint16_t bg)
     mvwaddwstr(win, y, x, half_block);
 }
 
-void display_image(TARGA_HEADER header, PIXEL* pixel_data)//, PALETTE* color_palette)
+void draw_image(WINDOW *canvas, IMAGE* image)
 {
-    WINDOW* img_win = newwin(header.height*4, header.width*4, 0, 0);
-
-    refresh();
-    wrefresh(img_win);
+    TARGA_HEADER* header = image->header;
+    wresize(canvas, header->height >> 1, header->width);
 
     int pixel_pos = 0;
-    for (int row = 0; row < (header.height / 2); row++) {
-        for (int col = 0; col < header.width; col++) {
-            int top_color = find_nearest_color(pixel_data[pixel_pos]);
-            int bottom_color = find_nearest_color(pixel_data[pixel_pos + header.width]);
+    for (int row = 0; row < (header->height / 2); row++) {
+        for (int col = 0; col < header->width; col++) {
+            int top_color = find_nearest_color(image->data[pixel_pos]);
+            int bottom_color = find_nearest_color(image->data[pixel_pos + header->width]);
 
-            display_color_pair(img_win, row, col, top_color, bottom_color);
+            display_color_pair(canvas, row, col, top_color, bottom_color);
 
             pixel_pos++;
         }
-        pixel_pos += header.width;
+        pixel_pos += header->width;
     }
 
     // If image height is odd, the last row still needs to be printed
-    if (header.height % 2 != 0) {
+    if (header->height % 2 != 0) {
 
         refresh();
-        int last_index = header.height * header.width;
-        //int row_pos = last_index - header.width;
+        int last_index = header->height * header->width;
+        //int row_pos = last_index - header->width;
 
-        for (int col = 0; col < header.width; col++) {
-            int top_color = find_nearest_color(pixel_data[pixel_pos++]);
+        for (int col = 0; col < header->width; col++) {
+            int top_color = find_nearest_color(image->data[pixel_pos++]);
 
-            display_color_pair(img_win,
-                               header.height / 2,
+            display_color_pair(canvas,
+                               header->height / 2,
                                col,
                                top_color,
                                COLOR_BLACK);
         }
     }
 
-    wrefresh(img_win);
+    wrefresh(canvas);
 }
-

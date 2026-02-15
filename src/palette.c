@@ -1,11 +1,10 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include "palette.h"
 
 void gp_color_cube(PALETTE* palette)
 {
     PIXEL* data = palette->data;
-
+    
     int curr_idx = 0;
 
     int red_val = 0;
@@ -57,18 +56,18 @@ int put_if_absent(PALETTE* palette, PIXEL new_pixel, int num_elems)
             return -1;
         }
     }
-    palette->data[num_elems+1] = new_pixel;
+    palette->data[num_elems] = new_pixel;
     return 0;
 }
 
 void gp_first_colors(PALETTE* palette, const IMAGE* image)
 {
-    int total_pixels = image->header.height * image->header.width;
+    int total_pixels = image->header->height * image->header->width;
     int num_elems = 0;
     for (int img_index = 0; img_index < total_pixels && num_elems < palette->size; img_index++) {
         PIXEL p = image->data[img_index];
         if (put_if_absent(palette, p, num_elems) != -1) {
-            num_elems++;
+           num_elems++;
         }
     }
 }
@@ -97,7 +96,7 @@ void gp_popularity(PALETTE* palette, const IMAGE* image)
         frequency[i].frequency = 0;
     }
 
-    const int TOTAL_PIXELS = image->header.height * image->header.width;
+    const int TOTAL_PIXELS = image->header->height * image->header->width;
     for (int img_index = 0; img_index < TOTAL_PIXELS; img_index++) {
         PIXEL curr_pixel = image->data[img_index];
 
@@ -121,9 +120,16 @@ void gp_popularity(PALETTE* palette, const IMAGE* image)
     }
 }
 
-void generate_palette(PALETTE* palette, const IMAGE* image, enum PALETTE_SIZE size, enum GENERATION_METHOD gen_method)
+PALETTE* generate_new_palette(const IMAGE* image, enum PALETTE_SIZE size, enum GENERATION_METHOD gen_method)
 {
+    PALETTE* palette = malloc(sizeof(PALETTE));
+
+    // FIX: temp fix to prevent crash when choosing a non 216 sized color palette 
+    size = (gen_method == COLOR_CUBE) ? COMPRESSED_216 : size;
+
     palette->size = size;
+
+
     palette->data = malloc(size * sizeof(PIXEL));
 
     switch (gen_method) {
@@ -139,4 +145,12 @@ void generate_palette(PALETTE* palette, const IMAGE* image, enum PALETTE_SIZE si
         default:
             break;
     }
+
+    return palette;
+}
+
+void destroy_palette(PALETTE *palette)
+{
+    free(palette->data);
+    free(palette);
 }

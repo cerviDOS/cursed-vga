@@ -1,4 +1,6 @@
-cursedvga: cursedvga.c tga.c UI.c palette.c
-	gcc -o ../cursedvga $^ -lncurses
+C_FILES = ${wildcard *.c ./**/*.c}
 
-clean: ; rm ../cursedvga cursedvga.o
+cursedvga: ${C_FILES}
+	gcc -o ../cursedvga $^ -lncursesw -lformw -lmenuw
+
+clean: ; rm ../cursedvga

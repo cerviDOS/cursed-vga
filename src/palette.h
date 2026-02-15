@@ -4,7 +4,7 @@
 #include "tga.h"
 
 enum PALETTE_SIZE {
-    COMPRESSED_248 = 248, // 256 minus 8 to preserve default colors
+    COMPRESSED_240 = 240, // 256 - 16 to preserve default and bright colors
     COMPRESSED_216 = 216,
     COMPRESSED_128 = 128,
     COMPRESSED_64  = 64,
@@ -13,7 +13,7 @@ enum PALETTE_SIZE {
 };
 
 enum GENERATION_METHOD {
-    COLOR_CUBE,
+    COLOR_CUBE = 0,
     UNIFORM,
     POPULARITY,
     MEDIAN_CUT,
@@ -27,9 +27,10 @@ typedef struct {
     PIXEL* data;
 } PALETTE;
 
-void generate_palette(PALETTE* palette,
-                      const IMAGE* image,
+PALETTE* generate_new_palette(const IMAGE* image,
                       enum PALETTE_SIZE size,
                       enum GENERATION_METHOD gen_method);
+
+void destroy_palette(PALETTE* palette);
 
 #endif
