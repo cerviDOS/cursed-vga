@@ -126,7 +126,6 @@ void initialize_ui()
 
     ITEM** palette_gen_items = menu_items(palette_gen_menu->menu);
     item_opts_off(palette_gen_items[1], O_SELECTABLE);
-    item_opts_off(palette_gen_items[2], O_SELECTABLE);
     item_opts_off(palette_gen_items[3], O_SELECTABLE);
     item_opts_off(palette_gen_items[4], O_SELECTABLE);
     item_opts_off(palette_gen_items[5], O_SELECTABLE);
