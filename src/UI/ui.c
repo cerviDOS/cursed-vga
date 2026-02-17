@@ -1,6 +1,9 @@
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <locale.h>
+
+#include <SDL3/SDL.h>
 
 #include "ncursutil.h"
 #include "nav.h"
@@ -8,6 +11,8 @@
 
 #include "disp.h"
 
+static SDL_Window* image_window_SDL;
+static WINDOW* image_window_ncurses;
 
 static int submit_button_hit = 0;
 static int exit_button_hit = 0;
@@ -66,10 +71,13 @@ void initialize_ui()
     setlocale(LC_ALL, "");
 
     initscr();
+    timeout(100);
     noecho();
     curs_set(0);
     start_color();
     keypad(stdscr, TRUE);
+
+    SDL_Init(SDL_INIT_VIDEO);
 
     /***** Color Pairs *****/
 
@@ -175,6 +183,11 @@ void initialize_ui()
     };
 
     initialize_navigator(elements, TOTAL_ELEMENTS);
+
+    /***** set up image display windows *****/
+    image_window_ncurses = newwin(0,0,0,52);
+    image_window_SDL = SDL_CreateWindow("cursedvga", 0, 0, SDL_WINDOW_HIDDEN);
+    SDL_PumpEvents();
 }
 
 UI_RETURN_DATA navigate_ui()
@@ -182,7 +195,18 @@ UI_RETURN_DATA navigate_ui()
     int input;
     enum ACTION action;
     do {
-        input = getch();
+        // Maybe put this on another thread?
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_EVENT_QUIT) {
+                SDL_HideWindow(image_window_SDL);
+            }
+        }
+
+        if ((input = getch()) == -1) {
+            continue;
+        }
+
         switch (input) {
             case KEY_UP:
                 action = MOVE_UP;
@@ -201,8 +225,8 @@ UI_RETURN_DATA navigate_ui()
                 break;
         }
         nav_act(action);
-
     } while (!check_and_reset_submit_button());
+
 
     refresh();
     return data;
@@ -210,29 +234,29 @@ UI_RETURN_DATA navigate_ui()
 
 void display_image(IMAGE* image, PALETTE* palette)
 {
-    // Bit of a hacky solution to clearing the previous
-    // image so it doesn't overlap with the new one.
-    //
-    // Draw_image() changes the size of the window
-    // to match what's needed for the image, so clearing
-    // it before the next call should erase the previous image
-    // entirely.
-    static WINDOW* canvas = NULL;
-    if (canvas == NULL) {
-        canvas = newwin(0,0,0,50);
-    } else {
-        wclear(canvas);
-        wrefresh(canvas);
-    }
-
     initialize_palette(palette);
-    draw_image(canvas, image);
+
+    wclear(image_window_ncurses);
+    wrefresh(image_window_ncurses);
+    SDL_HideWindow(image_window_SDL);
+
+    if (image->header->height > 100 || image->header->width > 100) {
+        draw_image_SDL(image_window_SDL, image);
+
+        if (SDL_GetWindowFlags(image_window_SDL) & SDL_WINDOW_HIDDEN) {
+            SDL_ShowWindow(image_window_SDL);
+        }
+    } else {
+        draw_image_ncurses(image_window_ncurses, image);
+    }
 }
 
 void destroy_ui()
 {
     reset_color_pairs();
     endwin();
+
+    SDL_Quit();
 }
 
 

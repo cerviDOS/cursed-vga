@@ -1,5 +1,7 @@
 #define _XOPEN_SOURCE_EXTENDED
 
+#include <SDL3/SDL.h>
+
 #include <ncurses.h>
 #include "../tga.h"
 #include "../palette.h"
@@ -25,6 +27,22 @@ int dist_squared(PIXEL rgb1, PIXEL rgb2)
     return square(rgb2.red_val - rgb1.red_val)
     + square(rgb2.green_val - rgb1.green_val)
     + square(rgb2.blue_val - rgb1.blue_val);
+}
+
+PIXEL find_nearest_pixel(PIXEL target_color)
+{
+    int closest_index = 0;
+    int shortest_dist = INT32_MAX;
+
+    for (int i = 0; i < curr_color_palette->size; i++) {
+        int curr_dist;
+        PIXEL curr_color = curr_color_palette->data[i];
+        if ((curr_dist = dist_squared(target_color, curr_color)) < shortest_dist) {
+            closest_index = i;
+            shortest_dist = curr_dist;
+        }
+    }
+    return curr_color_palette->data[closest_index];
 }
 
 int find_nearest_color(PIXEL target_color)
@@ -72,7 +90,6 @@ void initialize_palette(PALETTE* color_palette)
                    curr.blue_val * color_scale);
     }
     curr_color_palette = color_palette;
-    
 }
 
 void display_color_pair(WINDOW* win, int y, int x, uint16_t fg, uint16_t bg)
@@ -90,7 +107,38 @@ void display_color_pair(WINDOW* win, int y, int x, uint16_t fg, uint16_t bg)
     mvwaddwstr(win, y, x, half_block);
 }
 
-void draw_image(WINDOW *canvas, IMAGE* image)
+void draw_image_SDL(SDL_Window* window, IMAGE* image)
+{
+    int min_width_height = 100;
+    int width = (image->header->width < min_width_height) ? min_width_height : image->header->width;
+    int height = (image->header->height < min_width_height) ? min_width_height : image->header->height;
+
+    SDL_SetWindowSize(window, width, height);
+
+    SDL_Surface* surface = SDL_GetWindowSurface(window);
+    int pixel_pos = 0;
+    for (int row = 0; row < image->header->height; row++) {
+        for (int col = 0; col < image->header->width; col++) {
+            PIXEL curr_pixel = find_nearest_pixel(image->data[pixel_pos]);
+            uint32_t color_val =
+                (curr_pixel.red_val << 16)
+                | (curr_pixel.green_val << 8)
+                | curr_pixel.blue_val;
+
+            uint32_t* surface_pixel =
+                (uint32_t*) (surface->pixels
+                + row * surface->pitch
+                + col * 4);
+
+            *surface_pixel = color_val;
+
+            pixel_pos++;
+        }
+    }
+    SDL_UpdateWindowSurface(window);
+}
+
+void draw_image_ncurses(WINDOW *canvas, IMAGE* image)
 {
     TARGA_HEADER* header = image->header;
     wresize(canvas, header->height >> 1, header->width);
