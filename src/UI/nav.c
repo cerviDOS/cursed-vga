@@ -1,6 +1,7 @@
 #include <stdlib.h>
+
 #include "nav.h"
-#include "ncursutil.h"
+
 
 static UI_ELEMENT** elements;
 static UI_ELEMENT* curr;
@@ -96,7 +97,7 @@ void accept_input(UI_ELEMENT* element)
 void nav_act(enum ACTION action)
 {
     UI_ELEMENT* next = NULL;
-    
+
     switch (action) {
         case MOVE_UP:
             next = curr->up;

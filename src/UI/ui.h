@@ -1,7 +1,6 @@
 #ifndef UI_NEW_H
 #define UI_NEW_H
 
-//#include "../tga.h"
 #include "../palette.h"
 
 typedef struct {
@@ -10,8 +9,8 @@ typedef struct {
     enum PALETTE_SIZE req_palette_size;
 } UI_RETURN_DATA;
 
-// TODO: Temporarily exposing pair numbers, encapsulated this better later
-
+/*
+// TODO: Temporarily exposing pair numbers, encapsulate this better later
 #define ACTIVE_UI_ELEM_COLOR_PAIR 1
 #define INVALID_UI_ELEM_COLOR_PAIR 2
 #define INACTIVE_UI_ELEM_COLOR_PAIR 3
@@ -19,6 +18,7 @@ typedef struct {
 
 #define NUM_RESERVED_COLORS 16
 #define NUM_RESERVED_PAIRS 4
+*/
 
 void initialize_ui();
 void destroy_ui();

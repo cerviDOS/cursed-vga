@@ -11,6 +11,8 @@
 
 #include "UI/ui.h"
 
+
+// TODO: encapsulate this logic within a dedicated image struct
 IMAGE* try_read_image(const char* filepath)
 {
     if (access(filepath, F_OK) != 0) {
@@ -45,9 +47,8 @@ IMAGE* try_read_image(const char* filepath)
 
 // TODO: clean up where mallocs occur, place them in a consistent, predictable place
 // BUG: Switching between palette generation methods
-// cases a malloc(): corrupted top size. MacOS unaffected
-//
-// BUG:: freeze if directory is chosen
+// cases a malloc(): corrupted top size. MacOS unaffected.
+// BUG: freeze if directory is chosen.
 
 int main(int argc, char *argv[])
 {

@@ -4,12 +4,13 @@
 #include <locale.h>
 
 #include <SDL3/SDL.h>
+#include <ncurses.h>
 
-#include "ncursutil.h"
 #include "nav.h"
 #include "ui.h"
 
 #include "disp.h"
+
 
 static SDL_Window* image_window_SDL;
 static WINDOW* image_window_ncurses;
@@ -152,7 +153,6 @@ void initialize_ui()
     UI_ELEMENT* submit_button =
         create_button_ui_element("submit", 12, 42);
 
-
     /***** link UI elements *****/
 
     filepath_form->down = palette_gen_menu;
@@ -226,7 +226,6 @@ UI_RETURN_DATA navigate_ui()
         }
         nav_act(action);
     } while (!check_and_reset_submit_button());
-
 
     refresh();
     return data;

@@ -1,11 +1,12 @@
 #define _XOPEN_SOURCE_EXTENDED
 
 #include <SDL3/SDL.h>
-
 #include <ncurses.h>
+
 #include "../tga.h"
 #include "../palette.h"
-#include "ui.h"
+#include "ui_defs.h"
+
 
 static PALETTE* curr_color_palette;
 
