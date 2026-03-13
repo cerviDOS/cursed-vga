@@ -3,6 +3,9 @@
 
 #include "ui_element.h"
 
+// Initializes the UI navigator with the provided array of UI elements.
+// Assumes that the links between the elements (up,down,left,right) have
+// already been configured
 void initialize_navigator(UI_ELEMENT** elements, int num_elements);
 
 enum ACTION {
@@ -13,11 +16,13 @@ enum ACTION {
     SELECT
 };
 
+// Performs an action on the currently hovered
+// UI element.
+//
+// MOVE_X actions will move the currently hovered element
+// to an adjacent element if it exists
+//
+// SELECT will run the on-select callback of the currently hovered element
 void nav_act(enum ACTION);
-
-void nav_move_up();
-void nav_move_down();
-void nav_move_left();
-void nav_move_right();
 
 #endif

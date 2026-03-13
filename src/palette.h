@@ -28,8 +28,8 @@ typedef struct {
 } PALETTE;
 
 PALETTE* generate_new_palette(const IMAGE* image,
-                      enum PALETTE_SIZE size,
-                      enum GENERATION_METHOD gen_method);
+                              enum PALETTE_SIZE size,
+                              enum GENERATION_METHOD gen_method);
 
 void destroy_palette(PALETTE* palette);
 

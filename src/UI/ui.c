@@ -11,26 +11,46 @@
 
 #include "disp.h"
 
+// TODO:
+// - Exit button implementation
+// - Better encapsulating return data/removing globals
+//   required by current system
 
+// Windows for image display
 static SDL_Window* image_window_SDL;
 static WINDOW* image_window_ncurses;
 
 static int submit_button_hit = 0;
-static int exit_button_hit = 0;
+
+// Data to be returned by navigate_ui() upon
+// a submit button hit.
 static UI_RETURN_DATA data;
 
+// Sets the image file path to the contents of the filepath text field.
+//
+// Assumes that UI_ELEMENT e is the filepath text field.
 void set_filepath_callback(UI_ELEMENT* e)
 {
     form_driver(e->form, REQ_VALIDATION);
     strcpy(data.req_filepath, field_buffer(current_field(e->form), 0));
 }
 
+// Sets the requested quantization method to index of the currently
+// selected menu item.
+//
+// Assumes that UI_ELEMENT e is the palette generation method selection
+// menu.
 void set_generation_method_callback(UI_ELEMENT* e)
 {
     data.req_gen_method =
         item_index(current_item(e->menu));
 }
 
+// Sets the requested palette size to index of the currently
+// selected menu item.
+//
+// Assumes that UI_ELEMENT e is the palette size selection
+// menu.
 void set_palette_size_callback(UI_ELEMENT* e)
 {
     switch(item_index(current_item(e->menu))) {
@@ -55,11 +75,18 @@ void set_palette_size_callback(UI_ELEMENT* e)
     }
 }
 
+// Callback associated with the TUI's submit button.
+// Sets the flag submit_button_hit flag polled by
+// navigate_ui()
+//
+// Assumes that UI_ELEMENT e is the submit button
 void set_submit_button_callback(UI_ELEMENT* e)
 {
     submit_button_hit = 1;
 }
 
+// Called by navigate_ui() to poll whether the submit button has been
+// hit. If so, resets it back to 0.
 int check_and_reset_submit_button()
 {
     int ret = submit_button_hit;

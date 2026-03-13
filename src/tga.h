@@ -31,26 +31,38 @@ typedef struct __attribute__((packed)) {
     uint8_t red_val;
 } PIXEL;
 
+/*
+ * Complete image data of a TARGA file wrapped under
+ * a single struct
+ */
 typedef struct {
     TARGA_HEADER* header;
     PIXEL* data;
 } IMAGE;
 
 /*
- * enums for the two types of pixel packet present in a TARGA file
+ * Enums for the two types of pixel packet present in a TARGA file
  */
 enum PACKET_TYPE {
     RAW,
     RUNLEN
 };
 
-// TODO: make extern later
 static const char* const TGA_SIGNATURE = "TRUEVISION-XFILE";
 
-// bytestream represents an array of bytes formatted like a TGA file
+// Parses and returns an array of pixels from the bytestream.
+//
+// Requires that the bytestream be a byte-by-byte representation of a TGA image.
+// Requires that the bytestream be positioned at the very start of the TGA image.
 PIXEL* parse_tga(const void* bytestream);
+
+// Parses and returns a pointer to the TGA header.
+//
+// Requires that the bytestream be a byte-by-byte representation of a TGA image.
+// Requires that the bytestream be positioned at the very start of the TGA image.
 TARGA_HEADER* parse_header(const void* bytestream);
 
+// Frees the memory associated with the provided image
 void destroy_tga(IMAGE* img);
 
 #endif

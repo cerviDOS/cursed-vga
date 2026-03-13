@@ -4,7 +4,7 @@
 void gp_color_cube(PALETTE* palette)
 {
     PIXEL* data = palette->data;
-    
+
     int curr_idx = 0;
 
     int red_val = 0;
@@ -38,7 +38,7 @@ void gp_color_cube(PALETTE* palette)
     } while (red_val < 256);
 }
 
-// TODO: move these utility functions to their own file
+// TODO: move this utility function its own file
 // also, modifying the amount bit shifted could be a
 // TUI element in the future
 int pixels_equal(PIXEL a, PIXEL b, int8_t bitshift)
@@ -67,7 +67,7 @@ void gp_first_colors(PALETTE* palette, const IMAGE* image)
     for (int img_index = 0; img_index < total_pixels && num_elems < palette->size; img_index++) {
         PIXEL p = image->data[img_index];
         if (put_if_absent(palette, p, num_elems) != -1) {
-           num_elems++;
+            num_elems++;
         }
     }
 }
@@ -124,11 +124,11 @@ PALETTE* generate_new_palette(const IMAGE* image, enum PALETTE_SIZE size, enum G
 {
     PALETTE* palette = malloc(sizeof(PALETTE));
 
-    // FIX: temp fix to prevent crash when choosing a non 216 sized color palette 
+    // NOTE: temp fix to prevent a crash when choosing a non-216-sized color palette.
+    // In the future, automatically select the appropriate fixed-size palette when selected
     size = (gen_method == COLOR_CUBE) ? COMPRESSED_216 : size;
 
     palette->size = size;
-
 
     palette->data = malloc(size * sizeof(PIXEL));
 

@@ -17,8 +17,8 @@ void set_menu_appearance(UI_ELEMENT* elem, int std_pair, int invalid_pair)
 void set_form_appearance(UI_ELEMENT* elem, int std_pair, int invalid_pair)
 {
     set_field_back(current_field(elem->form), COLOR_PAIR(std_pair) | A_STANDOUT);
-    // TODO: Temp logic, assumes that the userptr is assigned to the label string.
-    // should be made its own member later (maybe a dedicated single field form struct?)
+
+    // NOTE: assumes that the field label is stored within the userptr.
      mvwprintw(form_win(elem->form), 1, 1, "%s", (char*) form_userptr(elem->form));
 }
 
@@ -40,9 +40,9 @@ void set_ui_element_appearance(UI_ELEMENT* element, enum UI_ELEMENT_APPEARANCE a
         invalid_pair = INACTIVE_INVALID_UI_ELEM_COLOR_PAIR;
     }
 
-    // TODO: duplicated parent_window code here could be replaced by
+    // TODO: Duplicated parent_window code here could be replaced by
     // keeping track of the window in the UI_ELEMENT rather than the
-    // individual internal elements
+    // internal elements
     void (*set_appearance_fn)(UI_ELEMENT*, int, int);
     WINDOW* parent_window;
     switch (element->type) {
@@ -114,7 +114,8 @@ UI_ELEMENT* create_field_ui_element(char* label, int form_buf_width, int y_pos, 
 
     mvwprintw(parent_window, 1, 1, "%s", label);
 
-    // TODO: TEMP - use userptr for storing the label for now
+    // NOTE: assumes that the field label is stored within the userptr.
+    // A dedicated single field form struct could be a better approach.
     set_form_userptr(form, malloc(sizeof(char) * strlen(label)));
     strcpy(form_userptr(form), label);
 
@@ -191,4 +192,23 @@ UI_ELEMENT* create_menu_ui_element(char** choices,
     wrefresh(parent_window);
 
     return elem;
+}
+
+void free_ui_element(UI_ELEMENT *element)
+{
+    switch (element->type) {
+        case MENU_T:
+            free_menu(element->menu);
+            break;
+        case FORM_T:
+            free_form(element->form);
+            break;
+        case BUTTON_T:
+            free(element->button->label);
+            delwin(element->button->win);
+            break;
+    }
+    free(element->window_title);
+
+    free(element);
 }
